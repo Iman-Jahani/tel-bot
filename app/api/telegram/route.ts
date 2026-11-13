@@ -1,6 +1,7 @@
 import { Bot, webhookCallback, InlineKeyboard } from "grammy";
 import { createClient } from "@supabase/supabase-js";
 
+
 // ---- Env ----
 const token = process.env.BOT_TOKEN;
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -50,17 +51,14 @@ bot.command("start", async (ctx) => {
     .row()
     .text("👤 پروفایل من", "profile");
 
-  await ctx.reply(
-    "سلام 👋\nبرای ثبت‌نام روی دکمه‌ی زیر بزن:",
-    { reply_markup: kb }
-  );
+  await ctx.reply("سلام 👋\nبرای ثبت‌نام روی دکمه‌ی زیر بزن:", {
+    reply_markup: kb,
+  });
 });
 
 bot.command("help", async (ctx) => {
   await ctx.reply(
-    "دستورات:\n" +
-      "/start - شروع و ثبت‌نام\n" +
-      "/count - تعداد کاربران ثبت‌نام‌شده"
+    "دستورات:\n/start - شروع و ثبت‌نام\n/count - تعداد کاربران"
   );
 });
 
@@ -73,38 +71,28 @@ bot.command("count", async (ctx) => {
     await ctx.reply("❌ خطا: " + error.message);
     return;
   }
-  await ctx.reply(`👥 تعداد کاربران ثبت‌نام‌شده: ${count}`);
+  await ctx.reply(`👥 تعداد کاربران: ${count}`);
 });
 
 // ---- Callbacks ----
 bot.callbackQuery("register", async (ctx) => {
   await ctx.answerCallbackQuery();
-
-  if (!ctx.from) {
-    await ctx.reply("❌ کاربر پیدا نشد.");
-    return;
-  }
+  if (!ctx.from) return ctx.reply("❌ کاربر پیدا نشد.");
 
   const { data, error } = await registerUser(ctx.from);
-
   if (error) {
     console.error("register error:", error);
-    await ctx.reply("❌ خطا در ثبت‌نام: " + error.message);
-    return;
+    return ctx.reply("❌ خطا: " + error.message);
   }
 
   await ctx.reply(
-    `✅ ثبت‌نام موفق!\n\n` +
-      `👤 نام: ${data.first_name}\n` +
-      `🆔 آیدی: <code>${data.telegram_id}</code>\n` +
-      `📅 تاریخ: ${new Date(data.registered_at).toLocaleString("fa-IR")}`,
+    `✅ ثبت‌نام موفق!\n\n👤 ${data.first_name}\n🆔 <code>${data.telegram_id}</code>\n📅 ${new Date(data.registered_at).toLocaleString("fa-IR")}`,
     { parse_mode: "HTML" }
   );
 });
 
 bot.callbackQuery("profile", async (ctx) => {
   await ctx.answerCallbackQuery();
-
   if (!ctx.from) return;
 
   const { data, error } = await supabase
@@ -113,25 +101,14 @@ bot.callbackQuery("profile", async (ctx) => {
     .eq("telegram_id", ctx.from.id)
     .maybeSingle();
 
-  if (error) {
-    await ctx.reply("❌ خطا: " + error.message);
-    return;
-  }
-
-  if (!data) {
-    await ctx.reply("هنوز ثبت‌نام نکردی. /start رو بزن.");
-    return;
-  }
+  if (error) return ctx.reply("❌ خطا: " + error.message);
+  if (!data) return ctx.reply("هنوز ثبت‌نام نکردی. /start رو بزن.");
 
   await ctx.reply(
-    `👤 پروفایل شما:\n\n` +
-      `نام: ${data.first_name} ${data.last_name ?? ""}\n` +
-      `یوزرنیم: ${data.username ? "@" + data.username : "—"}\n` +
-      `🆔 آیدی: <code>${data.telegram_id}</code>\n` +
-      `📅 ثبت‌نام: ${new Date(data.registered_at).toLocaleString("fa-IR")}`,
+    `👤 پروفایل:\n\nنام: ${data.first_name} ${data.last_name ?? ""}\nیوزرنیم: ${data.username ? "@" + data.username : "—"}\n🆔 <code>${data.telegram_id}</code>\n📅 ${new Date(data.registered_at).toLocaleString("fa-IR")}`,
     { parse_mode: "HTML" }
   );
 });
 
-// ---- Webhook ----
-export default webhookCallback(bot, "https");
+// ---- Webhook (نکته‌ی کلیدی) ----
+export const POST = webhookCallback(bot, "std/http");
